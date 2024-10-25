@@ -3,8 +3,9 @@
 
 void setupAD5934() {
     // Example start frequency, adjust as needed (3-byte start frequency value)
-    long startFrequency = 0x123456;
-    setRegister(START_FREQ_REG, startFrequency, 3);  // Write 3-byte start frequency
+    long startFrequency = 0x72B0; //value calculated using Required Start Frequency = 3.5KHz & MCLK = 16KHz
+                                    //this frequency was picked in the thesis. I used it assuming that the microcantilever is the same.
+    setRegister(AD5934_Address, START_FREQ_REG, startFrequency, 3);  // Write 3-byte start frequency need more argumente
 }
 
 void setRegister(uint16_t address, long value, int len) {
@@ -23,8 +24,8 @@ void setRegister(uint16_t address, long value, int len) {
 }
 
 void readImpedance() {
-    int16_t real = readRegister(REAL_DATA_REG, 2);  // Read 2 bytes from real part register
-    int16_t imag = readRegister(IMAG_DATA_REG, 2);  // Read 2 bytes from imaginary part register
+    int16_t real = readRegister(AD5934_Address, REAL_DATA_REG, 2);  // Read 2 bytes from real part register //more argumente
+    int16_t imag = readRegister(AD5934_Address,IMAG_DATA_REG, 2);  // Read 2 bytes from imaginary part register //more argumente
 
     // Calculate the magnitude and phase of the impedance
     float magnitude = sqrt(pow(real, 2) + pow(imag, 2));
