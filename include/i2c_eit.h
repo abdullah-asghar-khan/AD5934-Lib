@@ -1,7 +1,9 @@
 #ifndef I2C_EIT_H
 #define I2C_EIT_H
 
-#include <Wire.h> //missing this!!
+#include <Wire.h>
+#include <Arduino.h> //this exists here out of paranoia - possibly useless
+
 
 #define AD5934_Address 0x0D  // I2C address of the AD5934
 #define START_FREQ_REG 0x82  // Start frequency register (16-bit)

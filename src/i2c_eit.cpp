@@ -8,7 +8,7 @@ void setupAD5934() {
     setRegister(AD5934_Address, START_FREQ_REG, startFrequency, 3);  // Write 3-byte start frequency need more argumente
 }
 
-void setRegister(uint16_t address, long value, int len) {
+void setRegister(uint8_t deviceAddress, uint16_t address, long value, int len) {
     Wire.beginTransmission(AD5934_Address);
     Wire.write((address >> 8) & 0xFF);  // Send upper byte of 16-bit register address
     Wire.write(address & 0xFF);         // Send lower byte of 16-bit register address
@@ -38,7 +38,7 @@ void readImpedance() {
     Serial.println(phase);
 }
 
-int16_t readRegister(uint16_t address, int len) {
+int16_t readRegister(uint8_t deviceAddress, uint16_t address, int len) {
     Wire.beginTransmission(AD5934_Address);
     Wire.write((address >> 8) & 0xFF);  // Send upper byte of 16-bit register address
     Wire.write(address & 0xFF);         // Send lower byte of 16-bit register address
