@@ -2,13 +2,13 @@
 #include <Arduino.h>  // Required for Arduino-specific functions (like delay, Serial)
 
 void setupAD5934() {
-    long startFrequency = 0x123456;  // Example start frequency, adjust as needed
+    long startFrequency = 0x189CF;  // should be around 12 (0x189CF) - 13 (0x1A9CC) KHz
     setRegister(AD5934_Address, START_FREQ_REG, startFrequency, 3);  // Set start frequency (3 bytes)
 
     int numIncrements = 511;  // Maximum number of increments (9 bits)
     setRegister(AD5934_Address, NUM_INCR_REG, numIncrements, 2);  // Set number of increments (2 bytes)
 
-    long incrementFrequency = 0x00053;  // Set increment frequency value as 0x00053
+    long incrementFrequency = 0x00053;  // Set increment frequency value as 0x00053 - DOUBLECHECK THIS
     setRegister(AD5934_Address, INCR_FREQ_REG, incrementFrequency, 3);  // Set frequency increment (3 bytes)
 
     // Place AD5934 into Standby Mode
