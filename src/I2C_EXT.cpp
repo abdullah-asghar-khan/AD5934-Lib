@@ -423,3 +423,46 @@ bool AD5934::setupAD5934(AD5934 &ad5934) {
 
     return true;
 }
+
+/*-----------------------------------------------------------ADAFRUIT BME680--------------------------------------------------------------*/
+
+//Initialization sequence for BME680
+bool setupBME680(Adafruit_BME680 &bme) {
+    if (!bme.begin()) {
+        Serial.println("Failed to initialize BME680 sensor!");
+        return false;
+    }
+
+    // Set up oversampling and filter settings
+    bme.setTemperatureOversampling(BME680_OS_8X);
+    bme.setHumidityOversampling(BME680_OS_2X);
+    bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
+    //bme.setPressureOversampling(BME680_OS_4X); // pressure sensor - not being used in this project
+    //bme.setGasHeater(320, 150); // gas heater - not being used in this project
+
+    Serial.println("BME680 sensor initialized successfully.");
+    return true;
+}
+
+/**
+ * Reads temperature and humidity data from the BME680 sensor.
+ *
+ * @param bme Reference to an initialized Adafruit_BME680 object.
+ */
+void readSensorData(Adafruit_BME680 &bme) {
+    if (!bme.performReading()) {
+        Serial.println("Failed to perform reading :(");
+        return;
+    }
+
+    Serial.print("Temperature = ");
+    Serial.print(bme.temperature);
+    Serial.println(" *C");
+
+    Serial.print("Humidity = ");
+    Serial.print(bme.humidity);
+    Serial.println(" %");
+
+    Serial.println();
+}
+

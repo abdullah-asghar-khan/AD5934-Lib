@@ -6,6 +6,8 @@
  */
 #include <Arduino.h>
 #include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME680.h>
 
 /**
  * AD5934 Register Map
@@ -83,10 +85,17 @@
 // Frequency sweep parameters
 #define SWEEP_DELAY             (1)
 
-#define START_FREQUENCY 11166
+#define START_FREQUENCY 10916 //microcantilever specific resonant frequency minus half of the number of increments
 #define NUM_INCREMENTS  501
 #define STEP_SIZE 1 //increment frequency (1)
 #define SETTLING_CYCLES 10 // Define the settling cycles (adjust as needed)
+
+
+// BME680 initialization
+bool setupBME680(Adafruit_BME680 &bme);
+
+//Function to read data from the BME680 sensor
+void readSensorData(Adafruit_BME680 &bme);
 
 /**
  * AD5934 Library class
