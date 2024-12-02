@@ -5,23 +5,45 @@
 #include <Adafruit_BME680.h>               // For the BME680 sensor
 // #include <Adafruit_GFX.h>               // for a display that requires GFX library
 #include "I2C_EXT.h"
+#include "TCA9548.h"                       //Multiplexer TCA9548a library
 
+// Multiplexer instance
+TCA9548 multiplexer(0x70); // Address for TCA9548 (default)
 
+// AD5934 instances
+AD5934 ad5934_1; //1st IC instance
+AD5934 ad5934_2; //2nd IC instance
+AD5934 ad5934_3; //3rd IC instance
+// AD5934 ad5934; // ONLY when using 1 AD5934 Instance of the class for calling non-static methods
 
-AD5934 ad5934; // Instance of the class for calling non-static methods
-Adafruit_BME680 bme; // global instance for the BME680 sensor
+// BME680 global instance
+Adafruit_BME680 bme; 
 
 bool buttonPress = true; // Button press simulator - Initialize as true to avoid immediate trigger
+
+
+//helper function definition, supposedly it is good practice to define in "main"
+bool initializeDevice(uint8_t channel, AD5934 &device) {
+    multiplexer.selectChannel(channel);
+    return AD5934::setupAD5934(device); // Assuming setupAD5934 initializes an AD5934 device
+}
+
 
 void setup() {
     Wire.begin();
     Serial.begin(9600);
     delay(20000);  // Give time for Serial monitor to initialize. adjust per your needs
-    Serial.println("Initializing AD5934...");
 
-    if (!AD5934::setupAD5934(ad5934)) {
-    Serial.println("Error: AD5934 setup failed");
+    // Initialize multiplexer
+    if (!multiplexer.begin()) {
+        Serial.println("TCA9548 initialization failed!");
+        while (1);
     }
+
+        // Initialize AD5934 devices on separate channels
+    if (!initializeDevice(0, ad5934_1)) Serial.println("Error initializing AD5934 on channel 0");
+    if (!initializeDevice(1, ad5934_2)) Serial.println("Error initializing AD5934 on channel 1");
+    if (!initializeDevice(2, ad5934_3)) Serial.println("Error initializing AD5934 on channel 2");
 
     Serial.println("Initializing BME680...");
     if (!setupBME680(bme)) {
@@ -35,31 +57,16 @@ void loop() {
     if (!buttonPress) {   
     Serial.println("Starting impedance measurement...");
 
-    // Define arrays to store the real and imaginary parts of impedance
-    int realData[NUM_INCREMENTS];
-    int imagData[NUM_INCREMENTS];
-    float magnitudeData[NUM_INCREMENTS];
-    float phaseData[NUM_INCREMENTS];
+        SweepAndProcess(0, ad5934_1, multiplexer);
+        SweepAndProcess(1, ad5934_2, multiplexer);
+        SweepAndProcess(2, ad5934_3, multiplexer);
 
-    // Perform the frequency sweep
-    if (!ad5934.frequencySweep(realData, imagData, NUM_INCREMENTS)) {
-        return;
-    }
 
-    // Process and save the sweep data
-    for (int i = 0; i < NUM_INCREMENTS; i++) {
-        // Calculate magnitude and phase
-        magnitudeData[i] = sqrt(pow(realData[i], 2) + pow(imagData[i], 2));
-        phaseData[i] = atan2(imagData[i], realData[i]) * (180.0 / PI); // Phase in degrees //
-
-        //Print the values for debugging
-        //Serial.print("Point ");             //Comment out if need be
-        //Serial.print(i + 1);                //Comment out if need be
-        //Serial.print(" - Magnitude: ");     //Comment out if need be
-        Serial.print(magnitudeData[i]);
-        //Serial.print(", Phase: ");          //Comment out if need be
-        Serial.println(phaseData[i]);
-    }
+        // After all sweeps, power down devices to save energy
+        ad5934_1.setPowerMode(POWER_DOWN);
+        ad5934_2.setPowerMode(POWER_DOWN);
+        ad5934_3.setPowerMode(POWER_DOWN);
+    
 
     // Immediately after impedance sweep, read and display temperature and humidity
     Serial.println("Reading temperature and humidity...");

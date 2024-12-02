@@ -4,6 +4,7 @@
  */
 
 #include "I2C_EXT.h"
+#include "TCA9548.h"
 #include <Math.h>
 
 /**
@@ -313,6 +314,7 @@ bool AD5934::setPowerMode(byte level) {
     }
 }
 
+//FREQUENCY SWEEP
 bool AD5934::frequencySweep(int real[], int imag[], int n) {
     // Initialize sweep
     if (!(setPowerMode(POWER_STANDBY) &&
@@ -401,6 +403,36 @@ bool AD5934::calibrate(double gain[], int phase[], int real[], int imag[], int r
     return true;
 }
 
+/*---------------------------------------------------------SWEEP WITH MULTIPLEXER----------------------------------------------------------*/
+void SweepAndProcess(uint8_t channel, AD5934 &device, TCA9548 &multiplexer) {
+    // Select the channel on the multiplexer
+    multiplexer.selectChannel(channel);
+
+    // Arrays for storing raw sweep data
+    int realData[NUM_INCREMENTS];
+    int imagData[NUM_INCREMENTS];
+    float magnitudeData[NUM_INCREMENTS];
+    float phaseData[NUM_INCREMENTS];
+
+    // Perform the sweep
+    if (!device.frequencySweep(realData, imagData, NUM_INCREMENTS)) {
+        Serial.println("Frequency sweep failed");
+        return;
+    }
+
+    // Process and print the data
+    for (int i = 0; i < NUM_INCREMENTS; i++) {
+        magnitudeData[i] = sqrt(pow(realData[i], 2) + pow(imagData[i], 2));
+        phaseData[i] = atan2(imagData[i], realData[i]) * (180.0 / PI);
+        Serial.print("Magnitude: ");
+        Serial.print(magnitudeData[i]);
+        Serial.print(", Phase: ");
+        Serial.println(phaseData[i]);
+    }
+}
+
+
+/*-----------------------------------------------------AD5934 INITIALIZATION SEQUENCE------------------------------------------------------*/
 bool AD5934::setupAD5934(AD5934 &ad5934) {
     if (!(setExternalClock() &&
           setStartFrequency(START_FREQUENCY) &&

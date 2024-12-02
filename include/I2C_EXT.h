@@ -91,6 +91,8 @@
 #define SETTLING_CYCLES 10 // Define the settling cycles (adjust as needed)
 
 
+void SweepAndProcess(uint8_t channel, AD5934 &device, TCA9548 &multiplexer);
+
 // BME680 initialization
 bool setupBME680(Adafruit_BME680 &bme);
 
