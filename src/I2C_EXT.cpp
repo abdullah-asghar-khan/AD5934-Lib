@@ -4,6 +4,8 @@
  */
 
 #include "I2C_EXT.h"
+#include <Adafruit_Sensor.h>               // For the unified sensor interface
+#include <Adafruit_BME680.h> 
 #include "TCA9548.h"
 #include <Math.h>
 
@@ -314,9 +316,10 @@ bool AD5934::setPowerMode(byte level) {
     }
 }
 
-//FREQUENCY SWEEP
+//-----------------------------------------------FREQUENCY SWEEP---------------------------------------------------------
 bool AD5934::frequencySweep(int real[], int imag[], int n) {
     // Initialize sweep
+    Serial.println("Initializing frequency sweep...");
     if (!(setPowerMode(POWER_STANDBY) &&
           setControlMode(CTRL_INIT_START_FREQ) &&
           setControlMode(CTRL_START_FREQ_SWEEP))) {
@@ -326,21 +329,25 @@ bool AD5934::frequencySweep(int real[], int imag[], int n) {
     // Perform sweep
     int i = 0;
     while ((readStatusRegister() & STATUS_SWEEP_DONE) != STATUS_SWEEP_DONE) {
+        //delay(15); //testing proved this obsolete
         if (i >= n) return false;
 
         // Wait for valid data
         while ((readStatusRegister() & STATUS_DATA_VALID) != STATUS_DATA_VALID) {
-            delay(10); // Prevent overloading the I2C bus
+            delay(20); // Prevent overloading the I2C bus. with testing reduced to 20. below that doesnt really save time
         }
 
         // Retrieve impedance data
-        if (!getComplexData(&real[i], &imag[i])) return false;
-
-
+        if (!getComplexData(&real[i], &imag[i])) {
+            return false; // Failed to retrieve data
+        }
 
         // Increment frequency
-        if (!setControlMode(CTRL_INCREMENT_FREQ)) return false;
+        if (!setControlMode(CTRL_INCREMENT_FREQ)) {
+            return false; // Failed to increment frequency
+        }
 
+        delay(20); // Delay after increment. with testing reduced to 20. below that doesnt really save time
         i++;
     }
     delay(50); // Allow the device to stabilize
@@ -404,15 +411,70 @@ bool AD5934::calibrate(double gain[], int phase[], int real[], int imag[], int r
 }
 
 /*---------------------------------------------------------SWEEP WITH MULTIPLEXER----------------------------------------------------------*/
-void SweepAndProcess(uint8_t channel, AD5934 &device, TCA9548 &multiplexer) {
-    // Select the channel on the multiplexer
-    multiplexer.selectChannel(channel);
+//DEBUGGING VERSION
+void SweepAndProcess(uint8_t channel, AD5934 &device, TCA9548 &multiplexer, 
+                     float magnitudeData[][NUM_INCREMENTS], float phaseData[][NUM_INCREMENTS], int deviceIndex) {
+    //multiplexer.selectChannel(channel);
 
-    // Arrays for storing raw sweep data
+    // Debug message
+    Serial.print("Starting frequency sweep on channel ");
+    Serial.println(channel);
+
+    // Temporary arrays for raw sweep data
     int realData[NUM_INCREMENTS];
     int imagData[NUM_INCREMENTS];
-    float magnitudeData[NUM_INCREMENTS];
-    float phaseData[NUM_INCREMENTS];
+
+    // Perform the sweep
+    if (!device.frequencySweep(realData, imagData, NUM_INCREMENTS)) {
+        Serial.print("Frequency sweep failed on channel ");
+        Serial.println(channel);
+        return;
+    }
+
+    Serial.print("Frequency sweep completed on channel ");
+    Serial.println(channel);
+    Serial.print("Number of data points: ");
+    Serial.println(NUM_INCREMENTS);
+
+    // Save and print data for this device
+    for (int i = 0; i < NUM_INCREMENTS; i++) {
+        magnitudeData[deviceIndex][i] = sqrt(pow(realData[i], 2) + pow(imagData[i], 2));
+        phaseData[deviceIndex][i] = atan2(imagData[i], realData[i]) * (180.0 / PI);
+
+        // Print each data point
+        Serial.print("Point ");
+        Serial.print(i + 1);
+        Serial.print(": Real = ");
+        Serial.print(realData[i]);
+        Serial.print(", Imag = ");
+        Serial.print(imagData[i]);
+        Serial.print(", Magnitude = ");
+        Serial.print(magnitudeData[deviceIndex][i]);
+        Serial.print(", Phase = ");
+        Serial.print(phaseData[deviceIndex][i]);
+        Serial.println(" degrees");
+
+        //delay(100); // Add delay here (200ms = 0.2 seconds per point, adjust as needed)
+    }
+
+    // Debug message for power down
+    Serial.print("Powering down AD5934 on channel ");
+    Serial.println(channel);
+    device.setPowerMode(POWER_DOWN);
+}
+
+
+
+
+
+//NO DEBUGGING
+/*void SweepAndProcess(uint8_t channel, AD5934 &device, TCA9548 &multiplexer, 
+                     float magnitudeData[][NUM_INCREMENTS], float phaseData[][NUM_INCREMENTS], int deviceIndex) {
+    multiplexer.selectChannel(channel);
+
+    // Temporary arrays for raw sweep data
+    int realData[NUM_INCREMENTS];
+    int imagData[NUM_INCREMENTS];
 
     // Perform the sweep
     if (!device.frequencySweep(realData, imagData, NUM_INCREMENTS)) {
@@ -420,30 +482,28 @@ void SweepAndProcess(uint8_t channel, AD5934 &device, TCA9548 &multiplexer) {
         return;
     }
 
-    // Process and print the data
+    // Save the data for this device
     for (int i = 0; i < NUM_INCREMENTS; i++) {
-        magnitudeData[i] = sqrt(pow(realData[i], 2) + pow(imagData[i], 2));
-        phaseData[i] = atan2(imagData[i], realData[i]) * (180.0 / PI);
-        Serial.print("Magnitude: ");
-        Serial.print(magnitudeData[i]);
-        Serial.print(", Phase: ");
-        Serial.println(phaseData[i]);
+        magnitudeData[deviceIndex][i] = sqrt(pow(realData[i], 2) + pow(imagData[i], 2));
+        phaseData[deviceIndex][i] = atan2(imagData[i], realData[i]) * (180.0 / PI);
+
     }
-}
+    device.setPowerMode(POWER_DOWN);
+}*/
 
 
 /*-----------------------------------------------------AD5934 INITIALIZATION SEQUENCE------------------------------------------------------*/
-bool AD5934::setupAD5934(AD5934 &ad5934) {
+bool AD5934::setupAD5934( unsigned long startFrequency) {
     if (!(setExternalClock() &&
-          setStartFrequency(START_FREQUENCY) &&
+          setStartFrequency(startFrequency) &&  // Use the passed startFrequency
           setNumberIncrements(NUM_INCREMENTS) &&
           setIncrementFrequency(STEP_SIZE) &&
-          ad5934.setRange(CTRL_OUTPUT_RANGE_1))) {  // Using the instance here
+          setRange(CTRL_OUTPUT_RANGE_1))) {
         return false;
     }
 
     // Configure settling cycles
-    if (!ad5934.setSettlingCycles(SETTLING_CYCLES)) {  // Using the instance here
+    if (!setSettlingCycles(SETTLING_CYCLES)) {  // Using the instance here
         return false;
     } 
 
@@ -460,41 +520,44 @@ bool AD5934::setupAD5934(AD5934 &ad5934) {
 
 //Initialization sequence for BME680
 bool setupBME680(Adafruit_BME680 &bme) {
-    if (!bme.begin()) {
+    if (!bme.begin(0x76)) {
         Serial.println("Failed to initialize BME680 sensor!");
         return false;
     }
-
+    Serial.println("BME680 sensor detected and initialized.");
     // Set up oversampling and filter settings
     bme.setTemperatureOversampling(BME680_OS_8X);
     bme.setHumidityOversampling(BME680_OS_2X);
     bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
-    //bme.setPressureOversampling(BME680_OS_4X); // pressure sensor - not being used in this project
-    //bme.setGasHeater(320, 150); // gas heater - not being used in this project
 
-    Serial.println("BME680 sensor initialized successfully.");
+    Serial.println("BME680 setup complete.");
     return true;
 }
 
-/**
- * Reads temperature and humidity data from the BME680 sensor.
- *
- * @param bme Reference to an initialized Adafruit_BME680 object.
- */
-void readSensorData(Adafruit_BME680 &bme) {
-    if (!bme.performReading()) {
-        Serial.println("Failed to perform reading :(");
-        return;
+
+/*-------------------------------------------------------------Data Send------------------------------------------------------------------*/
+void sendDataToRaspberryPi(float magnitudeData[3][NUM_INCREMENTS], float phaseData[3][NUM_INCREMENTS], float temperature, float humidity) {
+    Serial.println("START_OF_DATA"); // Indicate the beginning of data transmission
+
+    // Send temperature and humidity
+    Serial.print("Temperature:");
+    Serial.println(temperature);
+    Serial.print("Humidity:");
+    Serial.println(humidity);
+
+    // Send data for each device
+    for (int deviceIndex = 0; deviceIndex < 3; deviceIndex++) {
+        Serial.print("Device ");
+        Serial.println(deviceIndex);
+
+        for (int i = 0; i < NUM_INCREMENTS; i++) {
+            Serial.print(magnitudeData[deviceIndex][i]);
+            Serial.print(","); // Separate magnitude and phase
+            Serial.println(phaseData[deviceIndex][i]);
+        }
     }
-
-    Serial.print("Temperature = ");
-    Serial.print(bme.temperature);
-    Serial.println(" *C");
-
-    Serial.print("Humidity = ");
-    Serial.print(bme.humidity);
-    Serial.println(" %");
-
-    Serial.println();
+    Serial.println("END_OF_DATA"); // Indicate the end of data transmission
 }
+
+
 

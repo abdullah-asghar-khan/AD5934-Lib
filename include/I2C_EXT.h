@@ -8,6 +8,62 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME680.h>
+#include "TCA9548.h"
+
+/**
+ * AD5934 Library class
+ *  Contains mainly functions for interfacing with the AD5934.
+ */
+class AD5934 {
+    public:
+        //setup AD5934 sequence
+        bool setupAD5934( unsigned long startFrequency);
+
+
+        // Reset the board
+        static bool reset(void);
+
+        // Clock configuration
+        static bool setExternalClock(void);  // Added this to explicitly set external clockclock option.
+        bool setSettlingCycles(int);
+
+        // Frequency sweep configuration
+        static bool setStartFrequency(unsigned long);
+        static bool setIncrementFrequency(unsigned long);
+        static bool setNumberIncrements(unsigned int);
+
+        // Gain configuration
+        static bool setPGAGain(byte);
+
+        // Excitation range configuration
+        bool setRange(byte);
+
+        // Read registers
+        static byte readRegister(byte);
+        static byte readStatusRegister(void);
+        static int readControlRegister(void);
+
+        // Impedance data
+        static bool getComplexData(int*, int*);
+
+        // Set control mode register (CTRL_REG1)
+        static bool setControlMode(byte);
+
+        // Power mode
+        static bool setPowerMode(byte);
+
+        // Perform frequency sweeps
+        static bool frequencySweep(int real[], int imag[], int);
+        static bool calibrate(double gain[], int phase[], int ref, int n);
+        static bool calibrate(double gain[], int phase[], int real[],
+                              int imag[], int ref, int n);
+    private:
+
+        // Sending/Receiving byte method, for easy re-use
+        static int getByte(byte, byte*);
+        static bool sendByte(byte, byte);
+};
+
 
 /**
  * AD5934 Register Map
@@ -85,71 +141,26 @@
 // Frequency sweep parameters
 #define SWEEP_DELAY             (1)
 
-#define START_FREQUENCY 10916 //microcantilever specific resonant frequency minus half of the number of increments
+#define START_FREQUENCY1 10916 //microcantilever specific resonant frequency minus half of the number of increments
+#define START_FREQUENCY2 10916 //microcantilever specific resonant frequency minus half of the number of increments
+#define START_FREQUENCY3 10916 //microcantilever specific resonant frequency minus half of the number of increments
+
 #define NUM_INCREMENTS  501
 #define STEP_SIZE 1 //increment frequency (1)
 #define SETTLING_CYCLES 10 // Define the settling cycles (adjust as needed)
 
 
-void SweepAndProcess(uint8_t channel, AD5934 &device, TCA9548 &multiplexer);
+void SweepAndProcess(uint8_t channel, AD5934 &device, TCA9548 &multiplexer, 
+                     float magnitudeData[][NUM_INCREMENTS], float phaseData[][NUM_INCREMENTS], int deviceIndex);
+
 
 // BME680 initialization
 bool setupBME680(Adafruit_BME680 &bme);
 
-//Function to read data from the BME680 sensor
-void readSensorData(Adafruit_BME680 &bme);
+void sendDataToRaspberryPi(float magnitudeData[3][NUM_INCREMENTS], float phaseData[3][NUM_INCREMENTS], float temperature, float humidity);
 
-/**
- * AD5934 Library class
- *  Contains mainly functions for interfacing with the AD5934.
- */
-class AD5934 {
-    public:
-        //setup AD5934 sequence
-        static bool setupAD5934(AD5934 &ad5934);
 
-        // Reset the board
-        static bool reset(void);
 
-        // Clock configuration
-        static bool setExternalClock(void);  // Added this to explicitly set external clockclock option.
-        bool setSettlingCycles(int);
-
-        // Frequency sweep configuration
-        static bool setStartFrequency(unsigned long);
-        static bool setIncrementFrequency(unsigned long);
-        static bool setNumberIncrements(unsigned int);
-
-        // Gain configuration
-        static bool setPGAGain(byte);
-
-        // Excitation range configuration
-        bool setRange(byte);
-
-        // Read registers
-        static byte readRegister(byte);
-        static byte readStatusRegister(void);
-        static int readControlRegister(void);
-
-        // Impedance data
-        static bool getComplexData(int*, int*);
-
-        // Set control mode register (CTRL_REG1)
-        static bool setControlMode(byte);
-
-        // Power mode
-        static bool setPowerMode(byte);
-
-        // Perform frequency sweeps
-        static bool frequencySweep(int real[], int imag[], int);
-        static bool calibrate(double gain[], int phase[], int ref, int n);
-        static bool calibrate(double gain[], int phase[], int real[],
-                              int imag[], int ref, int n);
-    private:
-
-        // Sending/Receiving byte method, for easy re-use
-        static int getByte(byte, byte*);
-        static bool sendByte(byte, byte);
-};
 
 #endif
+
