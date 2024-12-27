@@ -14,7 +14,8 @@
  * AD5934 Library class
  *  Contains mainly functions for interfacing with the AD5934.
  */
-class AD5934 {
+class AD5934
+{
     public:
         //setup AD5934 sequence
         bool setupAD5934( unsigned long startFrequency);
@@ -141,9 +142,9 @@ class AD5934 {
 // Frequency sweep parameters
 #define SWEEP_DELAY             (1)
 
-#define START_FREQUENCY1 10916 //microcantilever specific resonant frequency minus half of the number of increments
-#define START_FREQUENCY2 10916 //microcantilever specific resonant frequency minus half of the number of increments
-#define START_FREQUENCY3 10916 //microcantilever specific resonant frequency minus half of the number of increments
+#define START_FREQUENCY1 14234 //microcantilever specific resonant frequency minus half of the number of increments
+#define START_FREQUENCY2 16580 //microcantilever specific resonant frequency minus half of the number of increments
+#define START_FREQUENCY3 15310 //microcantilever specific resonant frequency minus half of the number of increments
 
 #define NUM_INCREMENTS  501
 #define STEP_SIZE 1 //increment frequency (1)
@@ -156,11 +157,6 @@ void SweepAndProcess(uint8_t channel, AD5934 &device, TCA9548 &multiplexer,
 
 // BME680 initialization
 bool setupBME680(Adafruit_BME680 &bme);
-
-void sendDataToRaspberryPi(float magnitudeData[3][NUM_INCREMENTS], float phaseData[3][NUM_INCREMENTS], float temperature, float humidity);
-
-
-
 
 #endif
 
